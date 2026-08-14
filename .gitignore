@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+
+generated/
+temp/
+
+.gradio/
+.hf_cache/
+.logs/
+.tmp_pip/

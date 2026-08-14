@@ -1,0 +1,1 @@
+"""MusicGen desktop MVP package."""
