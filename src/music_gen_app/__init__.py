@@ -1,1 +1,1 @@
-"""MusicGen desktop MVP package."""
+"""ACE-Step music generation app package."""
