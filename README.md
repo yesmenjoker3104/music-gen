@@ -37,14 +37,21 @@ py -3.12 -m venv C:\venvs\acestep
 C:\venvs\acestep\Scripts\python.exe -m pip install --upgrade pip
 C:\venvs\acestep\Scripts\python.exe -m pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu121
 C:\venvs\acestep\Scripts\python.exe -m pip install triton-windows
-C:\venvs\acestep\Scripts\python.exe -m pip install acestep
+# PyPI の acestep 0.1.0 はsdist が壊れているため GitHub から入れる（cp932 環境では PYTHONUTF8=1 が必要）
+$env:PYTHONUTF8='1'
+C:\venvs\acestep\Scripts\python.exe -m pip install "git+https://github.com/ace-step/ACE-Step.git"
+# ACE-Step は Gradio 5.x が必要（6.x では起動時に失敗する）
+C:\venvs\acestep\Scripts\python.exe -m pip install "gradio==5.23.3"
 ```
 
 ACE-Step サーバーの起動（初回はモデルのダウンロードが走ります）：
 
 ```powershell
-C:\venvs\acestep\Scripts\python.exe -m acestep.app --port 7861
+$env:PYTHONUTF8='1'
+C:\venvs\acestep\Scripts\acestep.exe --port 7861 --server_name 127.0.0.1 --cpu_offload true --overlapped_decode true --torch_compile false --bf16 true
 ```
+
+GTX 16 / 20 系（Turing）の GPU では bf16 の畳み込みが動かないため、`--bf16 false` と `$env:ACE_PIPELINE_DTYPE='float32'` を指定してください。`float16` にすると出力が全サンプル同じ値に張り付き、ノイズのような音になるため使わないでください。
 
 ### 2. music-gen UI のセットアップ
 
@@ -92,7 +99,7 @@ Slowly fade away...
 | 変数名 | 既定値 | 説明 |
 |---|---|---|
 | `ACESTEP_ENDPOINT` | `http://127.0.0.1:7861` | ACE-Step サーバーの URL |
-| `ACESTEP_API_NAME` | `/generate_music` | ACE-Step Gradio の API 関数名 |
+| `ACESTEP_API_NAME` | `/__call__` | ACE-Step Gradio の API 関数名 |
 | `OUTPUT_DIR` | `generated` | 生成ファイルの保存先 |
 | `APP_HOST` | `127.0.0.1` | UI のバインドアドレス |
 | `APP_PORT` | `7860` | UI のポート |
@@ -107,7 +114,9 @@ ACE-Step サーバーが起動していないか、接続できない状態で�
 - `ACESTEP_ENDPOINT` が正しいか確認する（リモート GPU の場合は IP アドレスを変更）
 - ファイアウォールでポート 7861 が開いているか確認する
 
-### `API名 '/generate_music' が正しいか確認してください` エラー
+### `API名 '/__call__' が正しいか確認してください` エラー
+
+ACE-Step 側の処理で失敗した場合も同じメッセージが出ます。まず ACE-Step のコンソールログを確認してください。
 
 ACE-Step のバージョンによってエンドポイント名が異なる場合があります：
 
@@ -118,6 +127,11 @@ c.view_api()  # 利用可能な API 名が表示される
 ```
 
 確認した名前を `ACESTEP_API_NAME` 環境変数で指定してください。
+
+### Windows での ACE-Step 初回起動の注意
+
+- **`[WinError 1314]`（シンボリックリンク権限がない）**: Hugging Face キャッシュがシンボリックリンクを作ろうとして失敗します。Windows の開発者モードを有効にするか、`huggingface_hub.snapshot_download(..., local_dir=...)` でモデルを取得し、`acestep` に `--checkpoint_path <そのフォルダ>` を渡してください。
+- **`Could not load libtorchcodec`**: WAV 保存に使う torchcodec が FFmpeg の共有 DLL（`avutil-*.dll` など）を必要とします。`ffmpeg.exe` だけの静的ビルドでは足りないため、共有ビルドの `bin` を PATH に通してください。
 
 ### `gradio-client が未インストールです`
 

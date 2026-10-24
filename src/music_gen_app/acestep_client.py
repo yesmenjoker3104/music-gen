@@ -62,7 +62,7 @@ class ACEStepClient:
                 f"ACE-Step が起動しているか確認してください。\n{exc}"
             ) from exc
 
-        seeds = [request.seed] if request.seed >= 0 else []
+        manual_seeds = str(request.seed) if request.seed >= 0 else None
         try:
             result = client.predict(
                 audio_duration=request.duration,
@@ -73,7 +73,7 @@ class ACEStepClient:
                 scheduler_type="euler",
                 cfg_type="apg",
                 omega_scale=request.omega_scale,
-                actual_seeds=seeds,
+                manual_seeds=manual_seeds,
                 api_name=self.settings.acestep_api_name,
             )
         except Exception as exc:
@@ -93,10 +93,13 @@ class ACEStepClient:
     def _save_result(self, gradio_result) -> Path:
         dest = self.settings.output_dir / self._build_filename()
 
+        # /__call__ returns (audio filepath, parameters JSON); the audio is the first item.
+        if isinstance(gradio_result, tuple) and gradio_result:
+            gradio_result = gradio_result[0]
+
         # gradio_client audio return types:
-        # - str/Path: filepath (most common with Gradio 5 + gradio_client 1.x)
+        # - str/Path: filepath
         # - dict {"name": "..."}: older gradio_client format
-        # - tuple (sample_rate, np.ndarray): numpy audio mode
 
         if isinstance(gradio_result, (str, Path)):
             src = Path(str(gradio_result))
@@ -109,19 +112,6 @@ class ACEStepClient:
             if src.exists():
                 shutil.copy2(src, dest)
                 return dest
-
-        if isinstance(gradio_result, tuple) and len(gradio_result) == 2:
-            sample_rate, audio_data = gradio_result
-            try:
-                import numpy as np  # type: ignore[import]
-                import soundfile as sf  # type: ignore[import]
-                audio = np.array(audio_data, dtype=np.float32)
-                if audio.ndim == 2:
-                    audio = audio.T
-                sf.write(str(dest), audio, int(sample_rate))
-                return dest
-            except ImportError:
-                pass
 
         raise RuntimeError(
             f"ACE-Step から予期しない出力形式を受け取りました: {type(gradio_result)}\n"

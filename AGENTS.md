@@ -58,15 +58,22 @@ C:\venvs\acestep\Scripts\python.exe -m pip install torch torchaudio --index-url 
 # triton（Windows GPU 最適化）
 C:\venvs\acestep\Scripts\python.exe -m pip install triton-windows
 
-# ACE-Step をインストール
-C:\venvs\acestep\Scripts\python.exe -m pip install acestep
+# ACE-Step をインストール（PyPI の acestep 0.1.0 は sdist が壊れているため GitHub から）
+$env:PYTHONUTF8='1'
+C:\venvs\acestep\Scripts\python.exe -m pip install "git+https://github.com/ace-step/ACE-Step.git"
+
+# ACE-Step は Gradio 5.x が必要
+C:\venvs\acestep\Scripts\python.exe -m pip install "gradio==5.23.3"
 ```
 
 ### ACE-Step サーバーの起動
 
 ```powershell
-C:\venvs\acestep\Scripts\python.exe -m acestep.app --port 7861
+$env:PYTHONUTF8='1'
+C:\venvs\acestep\Scripts\acestep.exe --port 7861 --server_name 127.0.0.1 --cpu_offload true --overlapped_decode true --torch_compile false --bf16 true
 ```
+
+Turing 世代（GTX 16 / 20 系）では `--bf16 false` と `$env:ACE_PIPELINE_DTYPE='float32'` を指定する（`float16` は出力が壊れるため不可）。Windows の初回モデル取得・torchcodec の注意点は README のトラブルシューティングを参照。
 
 ### AudioGen サーバーのセットアップ（GPU マシン側）
 
@@ -98,7 +105,7 @@ C:\venvs\musicgen-ui\Scripts\python.exe app.py
 
 ## ACE-Step API エンドポイントの確認方法
 
-デフォルトの `ACESTEP_API_NAME` は `/generate_music`。実際の名前が異なる場合は：
+デフォルトの `ACESTEP_API_NAME` は `/__call__`（ACE-Step 0.2.0 の text2music 関数）。実際の名前が異なる場合は：
 
 1. `http://127.0.0.1:7861/info` にアクセスしてエンドポイント一覧を確認
 2. または `gradio_client` を使って確認：
@@ -114,7 +121,7 @@ C:\venvs\musicgen-ui\Scripts\python.exe app.py
 | 変数名 | 既定値 | 説明 |
 |---|---|---|
 | `ACESTEP_ENDPOINT` | `http://127.0.0.1:7861` | ACE-Step サーバーの URL |
-| `ACESTEP_API_NAME` | `/generate_music` | ACE-Step Gradio の API 関数名 |
+| `ACESTEP_API_NAME` | `/__call__` | ACE-Step Gradio の API 関数名 |
 | `AUDIOGEN_ENDPOINT` | `http://127.0.0.1:7862` | AudioGen サーバーの URL |
 | `AUDIOGEN_API_NAME` | `/generate_sound` | AudioGen Gradio の API 関数名 |
 | `OUTPUT_DIR` | `generated` | 生成ファイルの保存先 |
